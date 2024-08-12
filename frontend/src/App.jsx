@@ -1,9 +1,9 @@
 import Editor from '@monaco-editor/react'
-
+import FileInput from './components/FileInput'
 function App() {
 
   return (
-    <div className="h-screen flex flex-col text-center justify-center gap-5">
+    <div className="h-screen flex flex-col text-center justify-center">
       <section className='flex flex-col text-center justify-center'>
         <h1 className='m-4 text-2xl'>Entrada</h1>
         <div className='flex justify-center'>
@@ -19,7 +19,8 @@ function App() {
             }}
           />
         </div>
-        <button className='my-6 mx-auto p-2 rounded-md bg-btn w-1/12 text-xl font-bold'>Ejecutar</button>
+        <FileInput />
+        <button className='my-6 mx-auto p-2 rounded-md bg-btn w-1/12 text-xl font-bold text-white'>Ejecutar</button>
       </section>
       <section className='flex flex-col text-center justify-center'>
         <h1 className='m-4 text-2xl'>Salida</h1>
