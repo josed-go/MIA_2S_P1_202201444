@@ -38,6 +38,25 @@ func OpenFile(name string) (*os.File, error) {
 	return file, nil
 }
 
+func DeleteFile(name string, linea string) error {
+	// Verifica si el archivo existe
+	if _, err := os.Stat(name); os.IsNotExist(err) {
+		AgregarRespuesta("Error en linea " + linea + " : El archivo " + name + " no existe")
+		fmt.Printf("Error: El archivo %s no existe", name)
+		return err
+	}
+
+	// Intenta eliminar el archivo
+	err := os.Remove(name)
+	if err != nil {
+		fmt.Printf("Error eliminando archivo %s: %v", name, err)
+		return err
+	}
+
+	fmt.Printf("Archivo %s eliminado correctamente\n", name)
+	return nil
+}
+
 // Funcion para escribir un objecto en un archivo binario
 func WriteObject(file *os.File, data interface{}, position int64) error {
 	file.Seek(position, 0)

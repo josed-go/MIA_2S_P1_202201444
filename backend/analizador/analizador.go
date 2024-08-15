@@ -65,6 +65,9 @@ func AnalyzeCommand(command string, params string, linea string) {
 		fn_mkdisk(params, linea)
 		//} else if strings.Contains(command, "rep") {
 		//fmt.Print("COMANDO REP")
+	} else if strings.Contains(command, "rmdisk") {
+		fn_rmdisk(params, linea)
+
 	} else {
 		fmt.Println("Error: Commando invalido o no encontrado")
 		utilidades.AgregarRespuesta("Error en linea " + linea + " : Commando invalido o no encontrado")
@@ -128,4 +131,39 @@ func fn_mkdisk(params string, linea string) {
 
 	// LLamamos a la funcion
 	manejadorDisco.Mkdisk(*size, *fit, *unit, *path)
+}
+
+func fn_rmdisk(params string, linea string) {
+	fs := flag.NewFlagSet("rmdisk", flag.ExitOnError)
+	path := fs.String("path", "", "Ruta")
+
+	// Parse flag
+	fs.Parse(os.Args[1:])
+
+	// Encontrar la flag en el input
+	matches := re.FindAllStringSubmatch(params, -1)
+
+	// Process the input
+	for _, match := range matches {
+		flagName := match[1]                   // match[1]: Captura y guarda el nombre del flag (por ejemplo, "size", "unit", "fit", "path")
+		flagValue := strings.ToLower(match[2]) //trings.ToLower(match[2]): Captura y guarda el valor del flag, asegurándose de que esté en minúsculas
+
+		flagValue = strings.Trim(flagValue, "\"")
+
+		switch flagName {
+		case "path":
+			fs.Set(flagName, flagValue)
+		default:
+			fmt.Println("Error: Flag not found")
+		}
+	}
+
+	if *path == "" {
+		fmt.Println("Error: El parametro path es obligatorio")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : El parametro path es obligatorio")
+		return
+	}
+
+	// LLamamos a la funcion
+	manejadorDisco.Rmdisk(*path, linea)
 }

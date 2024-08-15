@@ -112,3 +112,22 @@ func Mkdisk(size int, fit string, unit string, path string) {
 
 	utilidades.AgregarRespuesta("Disco creado correctamente, ruta: " + path)
 }
+
+func Rmdisk(path string, linea string) {
+	fmt.Println("======INICIO RMDISK======")
+	fmt.Println("Path:", path)
+
+	// Create file
+	err := utilidades.DeleteFile(path, linea)
+	if err != nil {
+		// Maneja el error si ocurre
+		fmt.Println("Error:", err)
+		return
+	} else {
+		// Confirmación de eliminación exitosa
+		fmt.Println("Archivo eliminado exitosamente.")
+		utilidades.AgregarRespuesta("Archivo con ruta: " + path + " eliminado correctamente")
+	}
+
+	fmt.Println("======FIN MKDISK======")
+}
