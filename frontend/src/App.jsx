@@ -1,10 +1,12 @@
 import Editor from '@monaco-editor/react'
 import FileInput from './components/FileInput'
-import { useRef} from 'react'
+import { useRef, useState} from 'react'
 
 function App() {
   const editorRef = useRef(null)
   const consolaRef = useRef(null)
+
+  const [ entradaFile, setEntradaFile ] = useState("")
 
   const handleEditor = (editor, id) => {
     if(id == "editor" ) {
@@ -54,6 +56,8 @@ function App() {
   const analizar = async () => {
     var entrada = editorRef.current.getValue()
 
+    entrada = entrada +"\n"+ entradaFile
+    
     const entradaFiltrada = confirmarRmdisk(entrada)
 
     const response = await fetch('http://localhost:3000/analizar', {
@@ -86,8 +90,8 @@ function App() {
               onMount={(editor) => handleEditor(editor, "editor")}
           />
         </div>
-        <FileInput />
-        <button className='my-6 mx-auto p-2 rounded-md bg-btn w-1/12 text-xl font-bold text-white'
+        <FileInput texto={setEntradaFile} />
+        <button className='my-6 mx-auto p-2 rounded-md bg-btn w-1/12 text-xl font-bold text-white hover:bg-btn-osc'
           onClick={analizar}
         >
           Ejecutar

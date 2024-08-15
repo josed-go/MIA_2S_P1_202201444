@@ -1,17 +1,30 @@
 import { useState } from "react";
 
-const FileInput = () => {
+const FileInput = ({ texto }) => {
 
     const [ fileName, setFileName] = useState("")
 
     const handleFile = (event) => {
         const file = event.target.files[0]
 
+        const fileReader = new FileReader()
+        
         if(file) {
             setFileName(file.name)
+            fileReader.readAsText(file)
+
+            fileReader.onload = () => {
+                texto(fileReader.result)
+            }
+
+            fileReader.onerror = () => {
+                console.log(fileReader.error)
+            }
         }else {
             setFileName("")
+            texto("")
         }
+
     }
     
     return (

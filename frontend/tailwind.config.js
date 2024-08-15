@@ -10,6 +10,7 @@ export default {
     extend: {
       colors: {
         'btn': '#678c99',
+        'btn-osc': '#405861',
       }
     },
   },
