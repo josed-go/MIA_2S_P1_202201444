@@ -1,6 +1,32 @@
 import Editor from '@monaco-editor/react'
 import FileInput from './components/FileInput'
+import { useRef } from 'react'
+
 function App() {
+  const editorRef = useRef(null)
+  const consolaRef = useRef(null)
+
+  const handleEditor = (editor, id) => {
+    if(id == "editor" ) {
+        editorRef.current = editor
+    }else if(id == "consola") {
+        consolaRef.current = editor
+    }
+  }
+
+  const analizar = async () => {
+    var entrada = editorRef.current.getValue()
+    const response = await fetch('http://localhost:3000/analizar', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ entrada: entrada }),
+    })
+
+    const data = await response.json()
+    consolaRef.current.setValue(data.response)  
+  }
 
   return (
     <div className="h-screen flex flex-col text-center justify-center">
@@ -9,33 +35,39 @@ function App() {
         <div className='flex justify-center'>
           <Editor className='rounded-md'
               height="15vh" 
-              width="50%"
+              width="55%"
               theme='vs-dark'
               defaultLanguage='cpp'
               defaultValue=''
               options={{
                 scrollBeyondLastLine:false,
-                fontSize:"20px"
-            }}
+                fontSize:"16px"
+              }}
+              onMount={(editor) => handleEditor(editor, "editor")}
           />
         </div>
         <FileInput />
-        <button className='my-6 mx-auto p-2 rounded-md bg-btn w-1/12 text-xl font-bold text-white'>Ejecutar</button>
+        <button className='my-6 mx-auto p-2 rounded-md bg-btn w-1/12 text-xl font-bold text-white'
+          onClick={analizar}
+        >
+          Ejecutar
+        </button>
       </section>
       <section className='flex flex-col text-center justify-center'>
         <h1 className='m-4 text-2xl'>Salida</h1>
         <div className='flex justify-center'>
           <Editor className='rounded-md'
               height="15vh" 
-              width="50%"
+              width="55%"
               theme='vs-dark'
               defaultLanguage='cpp'
               defaultValue=''
               options={{
                 scrollBeyondLastLine:false,
-                fontSize:"20px",
+                fontSize:"16px",
                 readOnly: true
               }}
+              onMount={(editor) => handleEditor(editor, "consola")}
           />
         </div>
       </section>
