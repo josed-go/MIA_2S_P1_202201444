@@ -1,6 +1,6 @@
 import Editor from '@monaco-editor/react'
 import FileInput from './components/FileInput'
-import { useRef } from 'react'
+import { useRef} from 'react'
 
 function App() {
   const editorRef = useRef(null)
@@ -14,14 +14,54 @@ function App() {
     }
   }
 
+  const extractPath = (command) => {
+    const pathFlag = "-path=";
+    const startIndex = command.indexOf(pathFlag);
+  
+    if (startIndex !== -1) {
+      return command.substring(startIndex + pathFlag.length).split(' ')[0];
+    }
+  
+    return null
+  }
+
+  const confirmarRmdisk = (entrada) => {
+    const lineas = entrada.split('\n');
+
+    // Almacena las líneas filtradas
+    let lineasFiltradas = [];
+
+    // Itera sobre cada línea
+    for (let i = 0; i < lineas.length; i++) {
+      const linea = lineas[i]
+
+      if (linea.includes('rmdisk')) {
+        const ruta = extractPath(linea)
+        const confirmar = window.confirm(`Comando en linea ${i+1} eliminara la ruta:\n${ruta}.\nQuieres continuar?`)
+
+        if(confirmar) {
+          lineasFiltradas.push(linea)
+        } 
+        continue
+      }
+      lineasFiltradas.push(linea);
+    }
+
+    // Une las líneas filtradas y devuelve el nuevo string
+    return lineasFiltradas.join('\n');
+  }
+
   const analizar = async () => {
     var entrada = editorRef.current.getValue()
+
+    const entradaFiltrada = confirmarRmdisk(entrada)
+
     const response = await fetch('http://localhost:3000/analizar', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ entrada: entrada }),
+        body: JSON.stringify({ entrada: entradaFiltrada }),
     })
 
     const data = await response.json()
