@@ -1,6 +1,7 @@
 package analizador
 
 import (
+	"backend/comandos"
 	"backend/manejadorDisco"
 	"backend/utilidades"
 	"bufio"
@@ -63,15 +64,14 @@ func AnalyzeCommand(command string, params string, linea string) {
 
 	if strings.Contains(command, "mkdisk") {
 		fn_mkdisk(params, linea)
-		//} else if strings.Contains(command, "rep") {
-		//fmt.Print("COMANDO REP")
 	} else if strings.Contains(command, "rmdisk") {
 		fn_rmdisk(params, linea)
-
 	} else if strings.Contains(command, "fdisk") {
 		fn_fdisk(params, linea)
 	} else if strings.Contains(command, "mount") {
 		fn_mount(params, linea)
+	} else if strings.Contains(command, "cat") {
+		fn_cat(params, linea)
 	} else {
 		fmt.Println("Error: Commando invalido o no encontrado")
 		utilidades.AgregarRespuesta("Error en linea " + linea + " : Commando invalido o no encontrado")
@@ -287,4 +287,57 @@ func fn_mount(params string, linea string) {
 
 	// LLamamos a la funcion
 	manejadorDisco.Mount(*name, *path, linea)
+}
+
+func fn_cat(params string, linea string) {
+	//fs := flag.NewFlagSet("cat", flag.ExitOnError)
+
+	// Usaremos un mapa para almacenar los archivos
+	files := make(map[int]string)
+
+	// Encontrar la flag en el input
+	matches := re.FindAllStringSubmatch(params, -1)
+
+	// Process the input
+	for _, match := range matches {
+		flagName := match[1]                   // match[1]: Captura y guarda el nombre del flag (por ejemplo, "file1", "file2", etc.)
+		flagValue := strings.ToLower(match[2]) //strings.ToLower(match[2]): Captura y guarda el valor del flag, asegurándose de que esté en minúsculas
+
+		flagValue = strings.Trim(flagValue, "\"")
+
+		// Si el flagName empieza con "file" y es seguido por un número
+		if strings.HasPrefix(flagName, "file") {
+			// Extraer el número después de "file"
+			fileNumber, err := strconv.Atoi(strings.TrimPrefix(flagName, "file"))
+			if err != nil {
+				fmt.Println("Error: Nombre de archivo inválido")
+				utilidades.AgregarRespuesta("Error en linea " + linea + " : Nombre de archivo inválido")
+				return
+			}
+			files[fileNumber] = flagValue
+		} else {
+			fmt.Println("Error: Flag not found")
+		}
+	}
+
+	// Convertir el mapa a un slice ordenado
+	var orderedFiles []string
+	for i := 1; i <= len(files); i++ {
+		if file, exists := files[i]; exists {
+			orderedFiles = append(orderedFiles, file)
+		} else {
+			fmt.Println("Error: Falta un archivo en la secuencia")
+			utilidades.AgregarRespuesta("Error en linea " + linea + " : Falta un archivo en la secuencia")
+			return
+		}
+	}
+
+	if len(orderedFiles) == 0 {
+		fmt.Println("Error: No se encontraron archivos")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : No se encontraron archivos")
+		return
+	}
+
+	// Llamar a la función para manejar los archivos en orden
+	comandos.Cat(orderedFiles, linea)
 }
