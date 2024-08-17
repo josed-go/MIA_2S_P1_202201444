@@ -68,6 +68,8 @@ func AnalyzeCommand(command string, params string, linea string) {
 	} else if strings.Contains(command, "rmdisk") {
 		fn_rmdisk(params, linea)
 
+	} else if strings.Contains(command, "fdisk") {
+		fn_fdisk(params, linea)
 	} else {
 		fmt.Println("Error: Commando invalido o no encontrado")
 		utilidades.AgregarRespuesta("Error en linea " + linea + " : Commando invalido o no encontrado")
@@ -119,7 +121,7 @@ func fn_mkdisk(params string, linea string) {
 
 	if *unit != "k" && *unit != "m" {
 		fmt.Println("Error: El parametro unit debe ser k - m")
-		utilidades.AgregarRespuesta("Error en linea " + linea + " : El parametro El parametro unit debe ser k - m")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : El parametro unit debe ser k - m")
 		return
 	}
 
@@ -166,4 +168,78 @@ func fn_rmdisk(params string, linea string) {
 
 	// LLamamos a la funcion
 	manejadorDisco.Rmdisk(*path, linea)
+}
+
+func fn_fdisk(params string, linea string) {
+	fs := flag.NewFlagSet("fdisk", flag.ExitOnError)
+	size := fs.Int("size", 0, "Tamano")
+	unit := fs.String("unit", "k", "Unidad")
+	typ := fs.String("type", "p", "Tipo")
+	fit := fs.String("fit", "", "Ajuste")
+	name := fs.String("name", "", "Nombre")
+	path := fs.String("path", "", "Ruta")
+
+	// Parse flag
+	fs.Parse(os.Args[1:])
+
+	// Encontrar la flag en el input
+	matches := re.FindAllStringSubmatch(params, -1)
+
+	// Process the input
+	for _, match := range matches {
+		flagName := match[1]                   // match[1]: Captura y guarda el nombre del flag (por ejemplo, "size", "unit", "fit", "path")
+		flagValue := strings.ToLower(match[2]) //trings.ToLower(match[2]): Captura y guarda el valor del flag, asegurándose de que esté en minúsculas
+
+		flagValue = strings.Trim(flagValue, "\"")
+
+		switch flagName {
+		case "size", "fit", "unit", "path", "type", "name":
+			fs.Set(flagName, flagValue)
+		default:
+			fmt.Println("Error: Flag not found")
+		}
+	}
+
+	if *fit == "" {
+		*fit = "w"
+	}
+
+	// Validaciones
+	if *size <= 0 {
+		fmt.Println("Error: El tamano debe ser mayor a 0")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : El tamano debe ser mayor a 0")
+		return
+	}
+
+	if *unit != "k" && *unit != "m" && *unit != "b" {
+		fmt.Println("Error: El parametro unit debe ser k - m")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : El parametro unit debe ser b - k - m")
+		return
+	}
+
+	if *typ != "p" && *typ != "e" && *typ != "l" {
+		fmt.Println("Error: El parametro type debe ser p - e - l")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : El parametro type debe ser p - e - l")
+		return
+	}
+
+	if *fit != "b" && *fit != "f" && *fit != "w" {
+		fmt.Println("Error: El parametro fit debe ser b - f - w")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : El parametro fit debe ser b - f - w")
+		return
+	}
+
+	if *name == "" {
+		fmt.Println("Error: El parametro name es obligatorio")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : El parametro name es obligatorio")
+		return
+	}
+
+	if *path == "" {
+		fmt.Println("Error: El parametro path es obligatorio")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : El parametro path es obligatorio")
+		return
+	}
+
+	manejadorDisco.Fdisk(*size, *fit, *unit, *path, *typ, *name, linea)
 }

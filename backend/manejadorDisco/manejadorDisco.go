@@ -3,8 +3,10 @@ package manejadorDisco
 import (
 	"backend/estructuras"
 	"backend/utilidades"
+	"encoding/binary"
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 )
 
@@ -68,7 +70,7 @@ func Mkdisk(size int, fit string, unit string, path string) {
 	}
 
 	// Crear MRB
-	var newMRB estructuras.MRB
+	var newMRB estructuras.MBR
 	newMRB.MbrSize = int32(size)
 	newMRB.Signature = rand.Int31() // Numero random rand.Int31() genera solo números no negativos
 	copy(newMRB.Fit[:], fit)
@@ -78,25 +80,12 @@ func Mkdisk(size int, fit string, unit string, path string) {
 	formattedDate := currentTime.Format("02-01-2006 15:04:05")
 	copy(newMRB.CreationDate[:], formattedDate)
 
-	/*
-		newMRB.CreationDate[0] = '2'
-		newMRB.CreationDate[1] = '0'
-		newMRB.CreationDate[2] = '2'
-		newMRB.CreationDate[3] = '4'
-		newMRB.CreationDate[4] = '-'
-		newMRB.CreationDate[5] = '0'
-		newMRB.CreationDate[6] = '8'
-		newMRB.CreationDate[7] = '-'
-		newMRB.CreationDate[8] = '0'
-		newMRB.CreationDate[9] = '8'
-	*/
-
 	// Escribir el archivo
 	if err := utilidades.WriteObject(file, newMRB, 0); err != nil {
 		return
 	}
 
-	var TempMBR estructuras.MRB
+	var TempMBR estructuras.MBR
 	// Leer el archivo
 	if err := utilidades.ReadObject(file, &TempMBR, 0); err != nil {
 		return
@@ -130,4 +119,249 @@ func Rmdisk(path string, linea string) {
 	}
 
 	fmt.Println("======FIN MKDISK======")
+}
+
+func Fdisk(size int, fit string, unit string, path string, typ string, name string, linea string) {
+	fmt.Println("======INICIO FDISK======")
+	fmt.Println("Size:", size)
+	fmt.Println("Fit:", fit)
+	fmt.Println("Type:", typ)
+	fmt.Println("Unit:", unit)
+	fmt.Println("Path:", path)
+	fmt.Println("Name:", name)
+
+	// Validar size > 0
+	if size <= 0 {
+		fmt.Println("Error: Size debe ser mayo a  0")
+		return
+	}
+
+	// Validar unidar k - m
+	if unit != "k" && unit != "m" && unit != "b" {
+		fmt.Println("Error: Las unidades validas son k o m o b")
+		return
+	}
+
+	if typ != "p" && typ != "e" && typ != "l" {
+		fmt.Println("Error: El parametro type debe ser p - e - l")
+		return
+	}
+
+	if fit != "b" && fit != "f" && fit != "w" {
+		fmt.Println("Error: El parametro fit debe ser b - f - w")
+		return
+	}
+
+	if name == "" {
+		fmt.Println("Error: El parametro name es obligatorio")
+		return
+	}
+
+	if unit == "k" {
+		size = size * 1024
+	} else if unit == "m" {
+		size = size * 1024 * 1024
+	}
+
+	file, err := utilidades.OpenFile(path)
+	if err != nil {
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : No se encontro la ruta:" + path)
+		return
+	}
+
+	var mbrTemp estructuras.MBR
+
+	if err := utilidades.ReadObject(file, &mbrTemp, 0); err != nil {
+		utilidades.AgregarRespuesta("Ocurrio un error al acceder al disco en ruta:" + path)
+		return
+	}
+
+	estructuras.PrintMBR(mbrTemp)
+
+	fmt.Println("*****************")
+
+	for i := 0; i < 4; i++ {
+		partitionName := string(mbrTemp.Partitions[i].Name[:])
+		partitionName = strings.TrimRight(partitionName, "\x00")
+		fmt.Println("Nombre a ver:" + partitionName + " ---- Nombre validando:" + name)
+		fmt.Println("Resultado: ", partitionName == name)
+		if mbrTemp.Partitions[i].Size != 0 && partitionName == name {
+			fmt.Println("Error en linea " + linea + " : Ya existe una particion llamada:" + name + " en la ruta:" + path)
+			utilidades.AgregarRespuesta("Error en linea " + linea + " : Ya existe una particion llamada:" + name + " en la ruta:" + path)
+			return
+		}
+	}
+
+	var contP, contE, contT int
+
+	var espacioUsado int32 = 0
+
+	// Restar el espacio de MBR
+
+	//espacioRestante = espacioRestante - 168
+
+	for i := 0; i < 4; i++ {
+		if mbrTemp.Partitions[i].Size != 0 {
+			contT++
+			espacioUsado += mbrTemp.Partitions[i].Size
+
+			if mbrTemp.Partitions[i].Type[0] == 'p' {
+				contP++
+			} else if mbrTemp.Partitions[i].Type[0] == 'e' {
+				contE++
+			}
+		}
+	}
+
+	if contT >= 4 && typ != "l" {
+		fmt.Println("Error: No se pueden crear más de 4 particiones primarias o extendidas en total.")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : No se pueden crear mas de 4 particiones")
+		return
+	}
+
+	if typ == "e" && contE > 0 {
+		fmt.Println("Error: Solo se permite una partición extendida por disco.")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : Solo se permite una particion extendida por disco.")
+		return
+	}
+
+	if typ == "l" && contE == 0 {
+		fmt.Println("Error: No se puede crear una partición lógica sin una partición extendida.")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : No se puede crear una partición lógica sin una partición extendida.")
+		return
+	}
+
+	if espacioUsado+int32(size) > mbrTemp.MbrSize {
+		fmt.Println("Error: o hay suficiente espacio en el disco para crear esta partición.")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : No hay suficiente espacio en el disco para crear esta partición.")
+		return
+	}
+
+	var posicion int32 = 0
+
+	if contT == 0 {
+		posicion = int32(binary.Size(mbrTemp))
+	}
+
+	if contT > 0 {
+		posicion = mbrTemp.Partitions[contT-1].Start + mbrTemp.Partitions[contT-1].Size
+	}
+
+	for i := 0; i < 4; i++ {
+		if mbrTemp.Partitions[i].Size == 0 {
+			if typ == "p" || typ == "e" {
+				mbrTemp.Partitions[i].Size = int32(size)
+				mbrTemp.Partitions[i].Start = posicion
+				copy(mbrTemp.Partitions[i].Name[:], name)
+				copy(mbrTemp.Partitions[i].Fit[:], fit)
+				copy(mbrTemp.Partitions[i].Status[:], "0")
+				copy(mbrTemp.Partitions[i].Type[:], typ)
+				mbrTemp.Partitions[i].Correlative = int32(contT + 1)
+
+				// CODIGO PARA LA EXTENDIDA Y LOGICAS
+				if typ == "e" {
+					// Inicializar el primer EBR en la partición extendida
+					ebrStart := posicion // El primer EBR se coloca al inicio de la partición extendida
+					ebr := estructuras.EBR{
+						PartFit:   [1]byte{fit[0]},
+						PartStart: ebrStart,
+						PartSize:  0,
+						PartNext:  -1,
+					}
+					copy(ebr.PartName[:], "")
+					utilidades.WriteObject(file, ebr, int64(ebrStart))
+				}
+
+				break
+			}
+		}
+	}
+
+	if typ == "l" {
+		var particionEx *estructuras.Partition
+		for i := 0; i < 4; i++ {
+			if mbrTemp.Partitions[i].Type[0] == 'e' {
+				particionEx = &mbrTemp.Partitions[i]
+				break
+			}
+		}
+
+		if particionEx == nil {
+			fmt.Println("Error: No se encontró una partición extendida para crear la partición lógica")
+			return
+		}
+
+		// Encontrar el último EBR en la cadena
+		ebrPos := particionEx.Start
+		var lastEBR estructuras.EBR
+		for {
+			utilidades.ReadObject(file, &lastEBR, int64(ebrPos))
+			if lastEBR.PartNext == -1 {
+				break
+			}
+			ebrPos = lastEBR.PartNext
+		}
+
+		// Calcular la posición de inicio de la nueva partición lógica
+		var newEBRPos int32
+		if lastEBR.PartSize == 0 {
+			// Es la primera partición lógica
+			newEBRPos = ebrPos
+		} else {
+			// No es la primera partición lógica
+			newEBRPos = lastEBR.PartStart + lastEBR.PartSize
+		}
+
+		// Verificar si hay espacio suficiente en la partición extendida
+		if newEBRPos+int32(size)+int32(binary.Size(estructuras.EBR{})) > particionEx.Start+particionEx.Size {
+			fmt.Println("Error: No hay suficiente espacio en la partición extendida para esta partición lógica")
+			return
+		}
+
+		// Actualizar el EBR anterior
+		if lastEBR.PartSize != 0 {
+			lastEBR.PartNext = newEBRPos
+			utilidades.WriteObject(file, lastEBR, int64(ebrPos))
+		}
+
+		fmt.Println("Imprimir el tamano del ebr")
+		fmt.Println(int32(binary.Size(estructuras.EBR{})))
+		// Crear y escribir el nuevo EBR
+		newEBR := estructuras.EBR{
+			PartFit:   [1]byte{fit[0]}, //[1]byte(fit[0]),
+			PartStart: newEBRPos,       //+ int32(binary.Size(Structs.EBR{})),
+			PartSize:  int32(size),
+			PartNext:  -1,
+		}
+		copy(newEBR.PartName[:], name)
+		utilidades.WriteObject(file, newEBR, int64(newEBRPos))
+
+		fmt.Println("Partición lógica creada exitosamente")
+		estructuras.PrintEBR(newEBR)
+	}
+
+	fmt.Println("------------------")
+	fmt.Println("Tamaño del disco:", mbrTemp.MbrSize, "bytes")
+	fmt.Println("Tamaño utilizado:", espacioUsado, "bytes")
+	fmt.Println("Tamaño restante:", mbrTemp.MbrSize-espacioUsado, "bytes")
+	fmt.Println("------------------")
+
+	if err := utilidades.WriteObject(file, &mbrTemp, 0); err != nil {
+		fmt.Println("Error: Could not write MBR to file")
+		return
+	}
+
+	var TempMBR2 estructuras.MBR
+	if err := utilidades.ReadObject(file, &TempMBR2, 0); err != nil {
+		return
+	}
+
+	estructuras.PrintMBR(TempMBR2)
+
+	defer file.Close()
+
+	fmt.Println("Partición con nombre : "+name+" creada con éxito en la ruta:", path)
+	utilidades.AgregarRespuesta("Partición con nombre : " + name + " creada con éxito en la ruta: " + path)
+
+	fmt.Println("======FIN FDISK======")
 }

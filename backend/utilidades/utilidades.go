@@ -1,6 +1,7 @@
 package utilidades
 
 import (
+	"backend/estructuras"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -76,5 +77,22 @@ func ReadObject(file *os.File, data interface{}, position int64) error {
 		fmt.Println("Err ReadObject==", err)
 		return err
 	}
+	return nil
+}
+
+func WriteMRBToFile(filename string, mbr estructuras.MBR) error {
+	// Crear o truncar el archivo binario
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Escribir la estructura MRB en el archivo
+	err = binary.Write(file, binary.LittleEndian, &mbr)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
