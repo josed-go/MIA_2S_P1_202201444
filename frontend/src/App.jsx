@@ -78,7 +78,7 @@ function App() {
         <h1 className='m-4 text-2xl'>Entrada</h1>
         <div className='flex justify-center'>
           <Editor className='rounded-md'
-              height="15vh" 
+              height="25vh" 
               width="55%"
               theme='vs-dark'
               defaultLanguage='cpp'
@@ -101,7 +101,7 @@ function App() {
         <h1 className='m-4 text-2xl'>Salida</h1>
         <div className='flex justify-center'>
           <Editor className='rounded-md'
-              height="15vh" 
+              height="25vh" 
               width="55%"
               theme='vs-dark'
               defaultLanguage='cpp'
