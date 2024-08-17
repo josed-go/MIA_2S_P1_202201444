@@ -433,11 +433,11 @@ func Mount(name string, path string, linea string) {
 
 			mountedCount++ // Incrementar el número de partición montada
 			mbrTemp.Partitions[i].Status[0] = '1'
-
+			mbrTemp.Partitions[i].Correlative = int32(mountedCount)
 			// Generar ID con 44 + número de partición + letra de disco
 			mbrTemp.Partitions[i].Id = [4]byte{'4', '4', byte(mountedCount + '0'), diskLetter}
 			fmt.Println("Partición montada exitosamente en la ruta: " + path)
-			utilidades.AgregarRespuesta("Partición montada exitosamente en la ruta: " + path)
+			utilidades.AgregarRespuesta("Partición con nombre:" + name + " montada exitosamente en la ruta: " + path)
 			existe = true
 			break
 		}

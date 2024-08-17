@@ -49,7 +49,7 @@ func ImprimirParticion(datos Partition) {
 }
 
 func PrintPartition(data Partition) {
-	fmt.Println(fmt.Sprintf("Name: %s, type: %s, start: %d, size: %d, status: %s, id: %s", string(data.Name[:]), string(data.Type[:]), data.Start, data.Size, string(data.Status[:]), string(data.Id[:])))
+	fmt.Println(fmt.Sprintf("Name: %s, type: %s, start: %d, size: %d, status: %s, id: %s, Correlative: %d", string(data.Name[:]), string(data.Type[:]), data.Start, data.Size, string(data.Status[:]), string(data.Id[:]), data.Correlative))
 }
 
 func PrintEBR(data EBR) {
