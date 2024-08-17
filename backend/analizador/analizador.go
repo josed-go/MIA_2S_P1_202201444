@@ -314,6 +314,12 @@ func fn_cat(params string, linea string) {
 				utilidades.AgregarRespuesta("Error en linea " + linea + " : Nombre de archivo inválido")
 				return
 			}
+
+			if flagValue == "" {
+				fmt.Println("Error: parametro -file" + string(fileNumber) + " no contiene ninguna ruta")
+				utilidades.AgregarRespuesta("Error en linea " + linea + " : parametro -file" + string(fileNumber) + " no contiene ninguna ruta")
+			}
+
 			files[fileNumber] = flagValue
 		} else {
 			fmt.Println("Error: Flag not found")
