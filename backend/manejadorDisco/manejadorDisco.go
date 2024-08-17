@@ -10,6 +10,18 @@ import (
 	"time"
 )
 
+var letras = make(map[string]byte) // Mapa para almacenar la letra asignada a cada disco
+
+func getLetra(path string) byte {
+	if letra, exists := letras[path]; exists {
+		return letra
+	}
+	// Si el disco no tiene una letra asignada, se le asigna la siguiente disponible
+	newLetter := 'A' + byte(len(letras))
+	letras[path] = newLetter
+	return newLetter
+}
+
 func Mkdisk(size int, fit string, unit string, path string) {
 	fmt.Println("======INICIO MKDISK======")
 	fmt.Println("Size:", size)
@@ -256,7 +268,7 @@ func Fdisk(size int, fit string, unit string, path string, typ string, name stri
 				copy(mbrTemp.Partitions[i].Fit[:], fit)
 				copy(mbrTemp.Partitions[i].Status[:], "0")
 				copy(mbrTemp.Partitions[i].Type[:], typ)
-				mbrTemp.Partitions[i].Correlative = int32(contT + 1)
+				mbrTemp.Partitions[i].Correlative = 0
 
 				// CODIGO PARA LA EXTENDIDA Y LOGICAS
 				if typ == "e" {
@@ -296,6 +308,13 @@ func Fdisk(size int, fit string, unit string, path string, typ string, name stri
 		var lastEBR estructuras.EBR
 		for {
 			utilidades.ReadObject(file, &lastEBR, int64(ebrPos))
+
+			if strings.Contains(string(lastEBR.PartName[:]), name) {
+				fmt.Println("Error en linea " + linea + " : Ya existe una particion logica llamada:" + name + " en la ruta:" + path)
+				utilidades.AgregarRespuesta("Error en linea " + linea + " : Ya existe una particion logica llamada:" + name + " en la ruta:" + path)
+				return
+			}
+
 			if lastEBR.PartNext == -1 {
 				break
 			}
@@ -364,4 +383,85 @@ func Fdisk(size int, fit string, unit string, path string, typ string, name stri
 	utilidades.AgregarRespuesta("Partición con nombre : " + name + " creada con éxito en la ruta: " + path)
 
 	fmt.Println("======FIN FDISK======")
+}
+
+func Mount(name string, path string, linea string) {
+	fmt.Println("======INICIO MOUNT======")
+	if path == "" {
+		fmt.Println("Error: La ruta es obligatoria.")
+		return
+	}
+
+	if name == "" {
+		fmt.Println("Error: El nombre es obligatorio.")
+		return
+	}
+
+	file, err := utilidades.OpenFile(path)
+	if err != nil {
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : No se encontro la ruta:" + path)
+		return
+	}
+
+	var mbrTemp estructuras.MBR
+	if err := utilidades.ReadObject(file, &mbrTemp, 0); err != nil {
+		return
+	}
+
+	mountedCount := 0
+	diskLetter := getLetra(path) // Obtener la letra correspondiente al disco actual
+
+	for i := 0; i < 4; i++ {
+		if mbrTemp.Partitions[i].Status[0] == '1' {
+			mountedCount++
+		}
+	}
+
+	existe := false
+
+	for i := 0; i < 4; i++ {
+		partitionName := string(mbrTemp.Partitions[i].Name[:])
+		partitionName = strings.TrimRight(partitionName, "\x00")
+		if partitionName == name {
+			if strings.Contains(string(mbrTemp.Partitions[i].Type[:]), "e") || strings.Contains(string(mbrTemp.Partitions[i].Type[:]), "l") {
+				fmt.Println("Nombre:" + string(mbrTemp.Partitions[i].Name[:]))
+				fmt.Println("Tipo:" + string(mbrTemp.Partitions[i].Type[:]))
+				fmt.Println("Error: No se puede montar una partición extendida o lógica.")
+				utilidades.AgregarRespuesta("Error en linea " + linea + " : No se puede montar una partición extendida o lógica.")
+				return
+			}
+
+			mountedCount++ // Incrementar el número de partición montada
+			mbrTemp.Partitions[i].Status[0] = '1'
+
+			// Generar ID con 44 + número de partición + letra de disco
+			mbrTemp.Partitions[i].Id = [4]byte{'4', '4', byte(mountedCount + '0'), diskLetter}
+			fmt.Println("Partición montada exitosamente en la ruta: " + path)
+			utilidades.AgregarRespuesta("Partición montada exitosamente en la ruta: " + path)
+			existe = true
+			break
+		}
+	}
+
+	if !existe {
+		fmt.Println("Error: No existe ninguna partición con ese nombre en el disco con ruta:" + path)
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : No existe ninguna partición con ese nombre en el disco con ruta:" + path)
+		return
+	}
+
+	if err := utilidades.WriteObject(file, mbrTemp, 0); err != nil {
+		return
+	}
+
+	var TempMBR2 estructuras.MBR
+	if err := utilidades.ReadObject(file, &TempMBR2, 0); err != nil {
+		return
+	}
+	fmt.Println("******** MBR ********")
+	estructuras.PrintMBR(TempMBR2)
+	fmt.Println("******** MBR ********")
+	defer file.Close()
+
+	fmt.Println("======FIN MOUNT======")
+
 }

@@ -70,6 +70,8 @@ func AnalyzeCommand(command string, params string, linea string) {
 
 	} else if strings.Contains(command, "fdisk") {
 		fn_fdisk(params, linea)
+	} else if strings.Contains(command, "mount") {
+		fn_mount(params, linea)
 	} else {
 		fmt.Println("Error: Commando invalido o no encontrado")
 		utilidades.AgregarRespuesta("Error en linea " + linea + " : Commando invalido o no encontrado")
@@ -242,4 +244,47 @@ func fn_fdisk(params string, linea string) {
 	}
 
 	manejadorDisco.Fdisk(*size, *fit, *unit, *path, *typ, *name, linea)
+}
+
+func fn_mount(params string, linea string) {
+	// Definir flag
+	fs := flag.NewFlagSet("mount", flag.ExitOnError)
+	name := fs.String("name", "", "Nombre")
+	path := fs.String("path", "", "Ruta")
+
+	// Parse flag
+	fs.Parse(os.Args[1:])
+
+	// Encontrar la flag en el input
+	matches := re.FindAllStringSubmatch(params, -1)
+
+	// Process the input
+	for _, match := range matches {
+		flagName := match[1]                   // match[1]: Captura y guarda el nombre del flag (por ejemplo, "size", "unit", "fit", "path")
+		flagValue := strings.ToLower(match[2]) //trings.ToLower(match[2]): Captura y guarda el valor del flag, asegurándose de que esté en minúsculas
+
+		flagValue = strings.Trim(flagValue, "\"")
+
+		switch flagName {
+		case "name", "path":
+			fs.Set(flagName, flagValue)
+		default:
+			fmt.Println("Error: Flag not found")
+		}
+	}
+
+	if *path == "" {
+		fmt.Println("Error: El parametro path es obligatorio")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : El parametro path es obligatorio")
+		return
+	}
+
+	if *name == "" {
+		fmt.Println("Error: El parametro name es obligatorio")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : El parametro name es obligatorio")
+		return
+	}
+
+	// LLamamos a la funcion
+	manejadorDisco.Mount(*name, *path, linea)
 }
