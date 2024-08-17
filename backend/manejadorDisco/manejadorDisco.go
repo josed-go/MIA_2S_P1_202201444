@@ -431,6 +431,12 @@ func Mount(name string, path string, linea string) {
 				return
 			}
 
+			if mbrTemp.Partitions[i].Status[0] == '1' {
+				fmt.Println("Error: La particion con nombre: " + name + " ya se encuentra montada.")
+				utilidades.AgregarRespuesta("Error en linea " + linea + " : La particion con nombre: " + name + " ya se encuentra montada.")
+				return
+			}
+
 			mountedCount++ // Incrementar el número de partición montada
 			mbrTemp.Partitions[i].Status[0] = '1'
 			mbrTemp.Partitions[i].Correlative = int32(mountedCount)
