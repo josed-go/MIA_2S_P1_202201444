@@ -246,7 +246,7 @@ func fn_fdisk(params string, linea string) {
 	manejadorDisco.Fdisk(*size, *fit, *unit, *path, *typ, *name, linea)
 }
 
-func fn_mount(params string, linea string) {
+/*func fn_mount(params string, linea string) {
 	// Definir flag
 	fs := flag.NewFlagSet("mount", flag.ExitOnError)
 	name := fs.String("name", "", "Nombre")
@@ -287,6 +287,37 @@ func fn_mount(params string, linea string) {
 
 	// LLamamos a la funcion
 	manejadorDisco.Mount(*name, *path, linea)
+}*/
+
+func fn_mount(params string, linea string) {
+	fs := flag.NewFlagSet("mount", flag.ExitOnError)
+	path := fs.String("path", "", "Ruta")
+	name := fs.String("name", "", "Nombre de la partición")
+
+	fs.Parse(os.Args[1:])
+	matches := re.FindAllStringSubmatch(params, -1)
+
+	for _, match := range matches {
+		flagName := match[1]
+		flagValue := strings.ToLower(match[2])
+		flagValue = strings.Trim(flagValue, "\"")
+		fs.Set(flagName, flagValue)
+	}
+
+	if *path == "" || *name == "" {
+		fmt.Println("Error: Path es obligatorio")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : Path es obligatorio")
+		return
+	}
+
+	if *name == "" {
+		fmt.Println("Error: Name es obligatorio")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : Name es obligatorio")
+		return
+	}
+
+	lowercaseName := strings.ToLower(*name)
+	manejadorDisco.Mount(*path, lowercaseName, linea)
 }
 
 func fn_cat(params string, linea string) {
