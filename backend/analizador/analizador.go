@@ -41,21 +41,25 @@ func Analyze(entrada string) {
 	utilidades.LimpiarConsola()
 	cont := 0
 	scanner := bufio.NewScanner(strings.NewReader(entrada))
-	// Leer el string línea por línea
+
 	for scanner.Scan() {
 		cont += 1
-		line := scanner.Text() // Obtener la línea actual
-		fmt.Println("Comando leído:", line)
+		line := scanner.Text()
+
+		if strings.Contains(line, "#") {
+			line = strings.Split(line, "#")[0]
+		}
+
+		line = strings.TrimSpace(line)
 
 		if len(line) > 0 {
+			fmt.Println("Comando leído:", line)
 			command, params := getCommandAndParams(line)
-
 			AnalyzeCommand(command, params, strconv.Itoa(cont))
 		}
 
 	}
 
-	// Manejo de errores durante la lectura
 	if err := scanner.Err(); err != nil {
 		fmt.Println("Error leyendo el input:", err)
 	}

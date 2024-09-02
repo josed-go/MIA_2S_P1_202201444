@@ -85,11 +85,11 @@ func repMBR(id string, path string, linea string) {
 			textoDot += fmt.Sprintf("<tr><td bgcolor=\"#d8f8e1\">Name</td><td bgcolor=\"#d8f8e1\">%s</td></tr>\n", strings.Trim(string(partition.Name[:]), "\x00"))
 
 			if partition.Type[0] == 'e' || partition.Type[0] == 'E' {
-				ebrOffset := partition.Start
-				logicalPartitionCount := 1
+				finEbr := partition.Start
+				contPartLogic := 1
 				for {
 					var ebr estructuras.EBR
-					if err := utilidades.ReadObject(file, &ebr, int64(ebrOffset)); err != nil {
+					if err := utilidades.ReadObject(file, &ebr, int64(finEbr)); err != nil {
 						fmt.Println("Error al leer EBR:", err)
 						utilidades.AgregarRespuesta("Error en linea " + linea + " : Error al leer EBR")
 						break
@@ -101,18 +101,18 @@ func repMBR(id string, path string, linea string) {
 					textoDot += fmt.Sprintf("<tr><td bgcolor=\"#fdf9c4\">Start</td><td bgcolor=\"#fdf9c4\">%d</td></tr>\n", ebr.PartStart)
 					textoDot += fmt.Sprintf("<tr><td bgcolor=\"#fdf9c4\">Name</td><td bgcolor=\"#fdf9c4\">%s</td></tr>\n", strings.Trim(string(ebr.PartName[:]), "\x00"))
 
-					textoDot += fmt.Sprintf("<tr><td colspan='2' bgcolor=\"#ff6961\">Particion logica %d</td></tr>\n", logicalPartitionCount)
+					textoDot += fmt.Sprintf("<tr><td colspan='2' bgcolor=\"#ff6961\">Particion logica %d</td></tr>\n", contPartLogic)
 					textoDot += fmt.Sprintf("<tr><td bgcolor=\"#ffe4e1\">Fit</td><td bgcolor=\"#ffe4e1\">%s</td></tr>\n", string(ebr.PartFit[:]))
 					textoDot += fmt.Sprintf("<tr><td bgcolor=\"#ffe4e1\">Start</td><td bgcolor=\"#ffe4e1\">%d</td></tr>\n", ebr.PartStart)
 					textoDot += fmt.Sprintf("<tr><td bgcolor=\"#ffe4e1\">Size</td><td bgcolor=\"#ffe4e1\">%d</td></tr>\n", ebr.PartSize)
 					textoDot += fmt.Sprintf("<tr><td bgcolor=\"#ffe4e1\">Name</td><td bgcolor=\"#ffe4e1\">%s</td></tr>\n", strings.Trim(string(ebr.PartName[:]), "\x00"))
 
-					logicalPartitionCount++
+					contPartLogic++
 
 					if ebr.PartNext <= 0 {
 						break
 					}
-					ebrOffset = ebr.PartNext
+					finEbr = ebr.PartNext
 				}
 			}
 		}
@@ -122,8 +122,8 @@ func repMBR(id string, path string, linea string) {
 	textoDot += ">];\n"
 	textoDot += "}\n"
 
-	dotFilePath := "/home/jd/temps/mbr.dot"
-	err = os.WriteFile(dotFilePath, []byte(textoDot), 0644)
+	rutaDot := "/home/jd/temps/mbr.dot"
+	err = os.WriteFile(rutaDot, []byte(textoDot), 0644)
 	if err != nil {
 		utilidades.AgregarRespuesta("Error al escribir el archivo DOT")
 		fmt.Println("Error al escribir el archivo DOT:", err)
@@ -140,7 +140,7 @@ func repMBR(id string, path string, linea string) {
 		}
 	}
 
-	cmd := exec.Command("dot", "-Tjpg", dotFilePath, "-o", path)
+	cmd := exec.Command("dot", "-Tjpg", rutaDot, "-o", path)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	err = cmd.Run()
