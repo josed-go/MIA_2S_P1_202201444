@@ -22,6 +22,10 @@ var particionesMontadas = make(map[string][]ParticionMontada)
 
 //var letras = make(map[string]byte) // Mapa para almacenar la letra asignada a cada disco
 
+func GetMountedPartitions() map[string][]ParticionMontada {
+	return particionesMontadas
+}
+
 func PrintMountedPartitions() {
 	fmt.Println("Particiones montadas:")
 
@@ -502,6 +506,7 @@ func Fdisk(size int, fit string, unit string, path string, typ string, name stri
 
 // Función para montar particiones
 func Mount(path string, name string, linea string) {
+	fmt.Println("======INICIO MOUNT======")
 	file, err := utilidades.OpenFile(path)
 	if err != nil {
 		fmt.Println("Error: No se pudo abrir el archivo en la ruta:", path)
@@ -521,7 +526,6 @@ func Mount(path string, name string, linea string) {
 	var partition estructuras.Partition
 	var partitionIndex int
 
-	// Convertir el nombre a comparar a un arreglo de bytes de longitud fija
 	nameBytes := [16]byte{}
 	copy(nameBytes[:], []byte(name))
 
@@ -554,7 +558,7 @@ func Mount(path string, name string, linea string) {
 	if len(mountedPartitionsInDisk) == 0 {
 
 		if len(particionesMontadas) == 0 {
-			letter = 'A'
+			letter = 'a'
 		} else {
 			lastDiskID := getLastDiskID()
 			lastLetter := particionesMontadas[lastDiskID][0].ID[len(particionesMontadas[lastDiskID][0].ID)-1]
@@ -596,7 +600,7 @@ func Mount(path string, name string, linea string) {
 	fmt.Println("")
 
 	PrintMountedPartitions()
-
+	fmt.Println("======FIN MOUNT======")
 }
 
 // Función para obtener el ID del último disco montado

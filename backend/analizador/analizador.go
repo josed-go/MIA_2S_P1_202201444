@@ -3,6 +3,7 @@ package analizador
 import (
 	"backend/comandos"
 	"backend/manejadorDisco"
+	"backend/sistema"
 	"backend/utilidades"
 	"bufio"
 	"flag"
@@ -72,6 +73,8 @@ func AnalyzeCommand(command string, params string, linea string) {
 		fn_mount(params, linea)
 	} else if strings.Contains(command, "cat") {
 		fn_cat(params, linea)
+	} else if strings.Contains(command, "mkfs") {
+		fn_mkfs(params, linea)
 	} else {
 		fmt.Println("Error: Commando invalido o no encontrado")
 		utilidades.AgregarRespuesta("Error en linea " + linea + " : Commando invalido o no encontrado")
@@ -377,4 +380,45 @@ func fn_cat(params string, linea string) {
 
 	// Llamar a la función para manejar los archivos en orden
 	comandos.Cat(orderedFiles, linea)
+}
+
+func fn_mkfs(input string, linea string) {
+	fs := flag.NewFlagSet("mkfs", flag.ExitOnError)
+	id := fs.String("id", "", "Id")
+	type_ := fs.String("type", "full", "Tipo")
+	fs_ := fs.String("fs", "full", "Fs")
+
+	// Parse the input string, not os.Args
+	matches := re.FindAllStringSubmatch(input, -1)
+
+	for _, match := range matches {
+		flagName := strings.ToLower(match[1])
+		flagValue := strings.ToLower(match[2])
+
+		flagValue = strings.Trim(flagValue, "\"")
+
+		switch flagName {
+		case "id", "type", "fs":
+			fs.Set(flagName, flagValue)
+		default:
+			fmt.Println("Error: Flag not found")
+		}
+	}
+
+	// Verifica que se hayan establecido todas las flags necesarias
+	if *id == "" {
+		fmt.Println("Error: id es un parámetro obligatorio.")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : id es un parámetro obligatorio.")
+		return
+	}
+
+	if *type_ == "" {
+		/*fmt.Println("Error: type es un parámetro obligatorio.")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : type es un parámetro obligatorio.")
+		return*/
+		*type_ = "full"
+	}
+
+	// Llamar a la función
+	sistema.Mkfs(*id, *type_, *fs_)
 }
