@@ -6,6 +6,7 @@ import (
 	"backend/utilidades"
 	"bytes"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +17,8 @@ func Reportes(id string, path string, name string, linea string) {
 	switch name {
 	case "mbr":
 		repMBR(id, path, linea)
+	case "disk":
+		repDisk(id, path, linea)
 	default:
 		fmt.Println("Tipo de reporte no encontrado")
 		utilidades.AgregarRespuesta("Error en linea " + linea + " : Tipo de reporte no encontrado")
@@ -154,4 +157,172 @@ func repMBR(id string, path string, linea string) {
 	utilidades.AgregarRespuesta("Reporte de MBR generado exitosamente en " + path)
 	fmt.Println("Reporte de MBR generado exitosamente")
 	fmt.Println("====== FIN REP ======")
+}
+
+func repDisk(id string, path string, linea string) {
+	fmt.Println("====== INICIO REP DISK ======")
+	fmt.Println("Id:", id)
+	fmt.Println("Path:", path)
+
+	var mountedPartition manejadorDisco.ParticionMontada
+	var particionEncontrada bool
+
+	for _, partitions := range manejadorDisco.GetMountedPartitions() {
+		for _, partition := range partitions {
+			if partition.ID == id {
+				mountedPartition = partition
+				particionEncontrada = true
+				break
+			}
+		}
+		if particionEncontrada {
+			break
+		}
+	}
+
+	if !particionEncontrada {
+		fmt.Println("Partición no encontrada")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : Partición no encontrada")
+		return
+	}
+
+	file, err := utilidades.OpenFile(mountedPartition.Path)
+	if err != nil {
+		fmt.Println("Error al abrir el archivo:", err)
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : Error al abrir el archivo")
+		return
+	}
+	defer file.Close()
+
+	var TempMBR estructuras.MBR
+	if err := utilidades.ReadObject(file, &TempMBR, 0); err != nil {
+		fmt.Println("Error al leer el MBR:", err)
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : Error al leer el MBR")
+		return
+	}
+
+	// Variables para calcular el porcentaje
+	totalSize := float64(TempMBR.MbrSize)
+	usedSize := 0.0
+
+	nombreConExtension := filepath.Base(mountedPartition.Path)
+
+	textoDot := "digraph G {\n"
+	textoDot += "label=\"" + nombreConExtension + "\"\n"
+	textoDot += "labelloc=\"t\"\n"
+	textoDot += "subgraph cluster1 {\n"
+	textoDot += "label=\"\"\n"
+	textoDot += "disco [shape=none label=<\n"
+	textoDot += "<TABLE border=\"0\" cellspacing=\"4\" cellpadding=\"5\" color=\"blue\" >\n"
+	textoDot += "<TR>\n"
+	// MBR es siempre al inicio
+	//textoDot += fmt.Sprintf("<tr><td bgcolor=\"#eaf7fb\">MBR</td><td bgcolor=\"#eaf7fb\">%d</td><td bgcolor=\"#eaf7fb\">%.2f%%</td></tr>\n", 512, (512/totalSize)*100)
+	textoDot += "<TD border=\"1\"  cellpadding=\"65\">MBR</TD>\n"
+	// Analizando particiones
+	for i, partition := range TempMBR.Partitions {
+		fmt.Print("Particion ", i+1, ": ")
+		if partition.Status[0] != 0 {
+			partSize := float64(partition.Size)
+			usedSize += partSize
+			textoDot += fmt.Sprintf("<TD border=\"1\" cellpadding=\"%d\">Primaria<br/>%.2f por ciento del Disco</TD>\n", int(math.Round((partSize/totalSize)*100)), (partSize/totalSize)*100)
+			//textoDot += fmt.Sprintf("<tr><td bgcolor=\"#d8f8e1\">Particion %d</td><td bgcolor=\"#d8f8e1\">%d</td><td bgcolor=\"#d8f8e1\">%.2f%%</td></tr>\n", i+1)
+
+			if partition.Type[0] == 'e' || partition.Type[0] == 'E' {
+				finEbr := partition.Start
+				contPartLogic := 1
+
+				for {
+					var ebr estructuras.EBR
+					if err := utilidades.ReadObject(file, &ebr, int64(finEbr)); err != nil {
+						fmt.Println("Error al leer EBR:", err)
+						utilidades.AgregarRespuesta("Error en linea " + linea + " : Error al leer EBR")
+						break
+					}
+					contPartLogic++
+
+					if ebr.PartNext <= 0 {
+						break
+					}
+					finEbr = ebr.PartNext
+				}
+
+				textoDot += "<TD border=\"1\" widht=\"75\">\n"
+				textoDot += "<TABLE border=\"0\"  cellspacing=\"4\" cellpadding=\"10\">\n"
+				textoDot += "<TR>\n"
+				textoDot += fmt.Sprintf("<TD border=\"1\" colspan=\"%d\" cellpadding=\"75\">Extendida</TD>\n", contPartLogic+1)
+				textoDot += "</TR>\n"
+				textoDot += "<TR>\n"
+				finEbrd := partition.Start
+				for {
+					var ebr estructuras.EBR
+					if err := utilidades.ReadObject(file, &ebr, int64(finEbrd)); err != nil {
+						fmt.Println("Error al leer EBR:", err)
+						utilidades.AgregarRespuesta("Error en linea " + linea + " : Error al leer EBR")
+						break
+					}
+
+					textoDot += "<TD border=\"1\" height=\"185\">EBR</TD>\n"
+
+					ebrSize := float64(ebr.PartSize)
+					usedSize += ebrSize
+
+					//textoDot += fmt.Sprintf("<tr><td bgcolor=\"#fdf9c4\">Particion logica</td><td bgcolor=\"#fdf9c4\">%d</td><td bgcolor=\"#fdf9c4\">%.2f%%</td></tr>\n", ebr.PartSize, (ebrSize/totalSize)*100)
+
+					textoDot += fmt.Sprintf("<TD border=\"1\" cellpadding=\"%d\">Logica<br/>%.2f por ciento del Disco</TD>\n", int(math.Round((ebrSize/totalSize)*100)), (ebrSize/totalSize)*100)
+
+					if ebr.PartNext <= 0 {
+						break
+					}
+					finEbrd = ebr.PartNext
+				}
+				textoDot += "</TR>\n"
+				textoDot += "</TABLE>\n"
+				textoDot += "</TD>\n"
+			}
+		}
+	}
+
+	// Espacio libre restante
+	freeSize := totalSize - usedSize
+	//textoDot += fmt.Sprintf("<tr><td bgcolor=\"#eaf7fb\">Libre</td><td bgcolor=\"#eaf7fb\">%.2f</td><td bgcolor=\"#eaf7fb\">%.2f%%</td></tr>\n", freeSize, (freeSize/totalSize)*100)
+	textoDot += fmt.Sprintf("<TD border=\"1\" cellpadding=\"%d\">Libre<br/>%.2f por ciento del Disco</TD>\n", int(math.Round((freeSize/totalSize)*100)), (freeSize/totalSize)*100)
+	textoDot += "</TR>\n"
+	textoDot += "</TABLE>\n"
+	textoDot += ">];\n"
+	textoDot += "}\n"
+	textoDot += "}\n"
+
+	// Guardar el archivo .dot y generar la imagen
+	rutaDot := "/home/jd/temps/diskusage.dot"
+	err = os.WriteFile(rutaDot, []byte(textoDot), 0644)
+	if err != nil {
+		utilidades.AgregarRespuesta("Error al escribir el archivo DOT")
+		fmt.Println("Error al escribir el archivo DOT:", err)
+		return
+	}
+
+	dir := filepath.Dir(path)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err = os.MkdirAll(dir, 0755)
+		if err != nil {
+			utilidades.AgregarRespuesta("Error al crear el directorio")
+			fmt.Println("Error al crear el directorio:", err)
+			return
+		}
+	}
+
+	cmd := exec.Command("dot", "-Tjpg", rutaDot, "-o", path)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		utilidades.AgregarRespuesta("Error al ejecutar Graphviz")
+		fmt.Println("Error al ejecutar Graphviz:", err)
+		fmt.Println("Detalles del error:", stderr.String())
+		return
+	}
+
+	utilidades.AgregarRespuesta("Reporte de uso de disco generado exitosamente en " + path)
+	fmt.Println("Reporte de uso de disco generado exitosamente")
+	fmt.Println("====== FIN REP DISK ======")
 }
