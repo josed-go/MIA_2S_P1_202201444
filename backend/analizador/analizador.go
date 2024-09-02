@@ -75,6 +75,8 @@ func AnalyzeCommand(command string, params string, linea string) {
 		fn_cat(params, linea)
 	} else if strings.Contains(command, "mkfs") {
 		fn_mkfs(params, linea)
+	} else if strings.Contains(command, "rep") {
+		fn_rep(params, linea)
 	} else {
 		fmt.Println("Error: Commando invalido o no encontrado")
 		utilidades.AgregarRespuesta("Error en linea " + linea + " : Commando invalido o no encontrado")
@@ -421,4 +423,52 @@ func fn_mkfs(input string, linea string) {
 
 	// Llamar a la función
 	sistema.Mkfs(*id, *type_, *fs_)
+}
+
+func fn_rep(params string, linea string) {
+
+	fs := flag.NewFlagSet("rep", flag.ExitOnError)
+	id := fs.String("id", "", "Id")
+	path := fs.String("path", "", "Ruta")
+	name := fs.String("name", "", "Nombre")
+	fs.Parse(os.Args[1:])
+	matches := re.FindAllStringSubmatch(params, -1)
+
+	for _, match := range matches {
+
+		flagName := strings.ToLower(match[1])
+		flagValue := strings.ToLower(match[2])
+
+		flagValue = strings.Trim(flagValue, "\"")
+
+		switch flagName {
+		case "id", "path", "name":
+			fs.Set(flagName, flagValue)
+		default:
+			fmt.Println("Error: Flag not found")
+		}
+
+	}
+
+	if *id == "" {
+		fmt.Println("Error: Id es obligatorio")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : Id es obligatorio")
+
+		return
+	}
+
+	if *path == "" {
+		fmt.Println("Error: Path es obligatorio")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : Path es obligatorio")
+		return
+	}
+
+	if *name == "" {
+		fmt.Println("Error: Name es obligatorio")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : Name es obligatorio")
+		return
+	}
+
+	comandos.Reportes(*id, *path, *name, linea)
+
 }
