@@ -191,8 +191,8 @@ func Fdisk(size int, fit string, unit string, path string, typ string, name stri
 		return
 	}
 
-	if fit != "b" && fit != "f" && fit != "w" {
-		fmt.Println("Error: El parametro fit debe ser b - f - w")
+	if fit != "bf" && fit != "ff" && fit != "wf" {
+		fmt.Println("Error: El parametro fit debe ser bf - ff - wf")
 		return
 	}
 

@@ -220,17 +220,19 @@ func repDisk(id string, path string, linea string) {
 	textoDot += "<TD border=\"1\"  cellpadding=\"65\">MBR</TD>\n"
 	// Analizando particiones
 	for i, partition := range TempMBR.Partitions {
-		fmt.Print("Particion ", i+1, ": ")
+		fmt.Println("Particion ", i+1, ": ")
+		fmt.Println("Status: ", partition.Status[0])
 		if partition.Status[0] != 0 {
 			partSize := float64(partition.Size)
+			fmt.Println("ESte esle tamano de la particion ", i+1, " : ", partSize)
 			usedSize += partSize
-			textoDot += fmt.Sprintf("<TD border=\"1\" cellpadding=\"%d\">Primaria<br/>%.2f por ciento del Disco</TD>\n", int(math.Round((partSize/totalSize)*100)), (partSize/totalSize)*100)
 			//textoDot += fmt.Sprintf("<tr><td bgcolor=\"#d8f8e1\">Particion %d</td><td bgcolor=\"#d8f8e1\">%d</td><td bgcolor=\"#d8f8e1\">%.2f%%</td></tr>\n", i+1)
 
 			if partition.Type[0] == 'e' || partition.Type[0] == 'E' {
 				finEbr := partition.Start
 				contPartLogic := 1
-
+				extSize := float64(partition.Size)
+				extSizeD := partSize
 				for {
 					var ebr estructuras.EBR
 					if err := utilidades.ReadObject(file, &ebr, int64(finEbr)); err != nil {
@@ -238,9 +240,14 @@ func repDisk(id string, path string, linea string) {
 						utilidades.AgregarRespuesta("Error en linea " + linea + " : Error al leer EBR")
 						break
 					}
+
+					extSize -= float64(ebr.PartSize)
 					contPartLogic++
 
 					if ebr.PartNext <= 0 {
+						if extSize > 0 {
+							contPartLogic++
+						}
 						break
 					}
 					finEbr = ebr.PartNext
@@ -264,13 +271,18 @@ func repDisk(id string, path string, linea string) {
 					textoDot += "<TD border=\"1\" height=\"185\">EBR</TD>\n"
 
 					ebrSize := float64(ebr.PartSize)
+					fmt.Println("ESte esle tamano de la particion logica que se le esta sumando", i+1, " : ", ebrSize)
 					usedSize += ebrSize
+					extSizeD -= ebrSize
 
 					//textoDot += fmt.Sprintf("<tr><td bgcolor=\"#fdf9c4\">Particion logica</td><td bgcolor=\"#fdf9c4\">%d</td><td bgcolor=\"#fdf9c4\">%.2f%%</td></tr>\n", ebr.PartSize, (ebrSize/totalSize)*100)
-
-					textoDot += fmt.Sprintf("<TD border=\"1\" cellpadding=\"%d\">Logica<br/>%.2f por ciento del Disco</TD>\n", int(math.Round((ebrSize/totalSize)*100)), (ebrSize/totalSize)*100)
-
+					textoDot += fmt.Sprintf("<TD border=\"1\" cellpadding=\"%d\">Logica<br/>%.2f%% por ciento del Disco</TD>\n", int(math.Round((ebrSize/totalSize)*100)), (ebrSize/totalSize)*100)
+					fmt.Println("ESte esle tamano de la particion logica ", i+1, " : ", ebrSize)
 					if ebr.PartNext <= 0 {
+						if extSizeD > 0 {
+							fmt.Println("ESte esle tamano de libre", i+1, " : ", extSizeD)
+							textoDot += fmt.Sprintf("<TD border=\"1\" cellpadding=\"%d\">Libre<br/>%.2f%% por ciento del Disco</TD>\n", int(math.Round((extSizeD/totalSize)*100)), (extSizeD/totalSize)*100)
+						}
 						break
 					}
 					finEbrd = ebr.PartNext
@@ -278,14 +290,28 @@ func repDisk(id string, path string, linea string) {
 				textoDot += "</TR>\n"
 				textoDot += "</TABLE>\n"
 				textoDot += "</TD>\n"
+			} else {
+				textoDot += fmt.Sprintf("<TD border=\"1\" cellpadding=\"%d\">Primaria<br/>%.2f%% por ciento del Disco</TD>\n", int(math.Round((partSize/totalSize)*100)), (partSize/totalSize)*100)
 			}
 		}
 	}
 
 	// Espacio libre restante
 	freeSize := totalSize - usedSize
+	freePercentage := 100.0
+
+	for _, partition := range TempMBR.Partitions {
+		if partition.Status[0] != 0 {
+			partSize := float64(partition.Size)
+			freePercentage -= (partSize / totalSize) * 100
+		}
+	}
+	fmt.Println("Espacio libre (calculado como complemento):", freePercentage)
+	fmt.Println("ESte esle tamano total del disco ", totalSize)
+	fmt.Printf("ESte esle tamano de la particion usada %.2f\n", usedSize)
+	fmt.Println("ESte esle tamano de la particion libre ", freeSize)
 	//textoDot += fmt.Sprintf("<tr><td bgcolor=\"#eaf7fb\">Libre</td><td bgcolor=\"#eaf7fb\">%.2f</td><td bgcolor=\"#eaf7fb\">%.2f%%</td></tr>\n", freeSize, (freeSize/totalSize)*100)
-	textoDot += fmt.Sprintf("<TD border=\"1\" cellpadding=\"%d\">Libre<br/>%.2f por ciento del Disco</TD>\n", int(math.Round((freeSize/totalSize)*100)), (freeSize/totalSize)*100)
+	textoDot += fmt.Sprintf("<TD border=\"1\" cellpadding=\"%d\">Libre<br/>%.2f%% por ciento del Disco</TD>\n", int(math.Round(freePercentage)), freePercentage)
 	textoDot += "</TR>\n"
 	textoDot += "</TABLE>\n"
 	textoDot += ">];\n"

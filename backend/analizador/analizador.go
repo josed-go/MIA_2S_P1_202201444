@@ -186,7 +186,7 @@ func fn_fdisk(params string, linea string) {
 	size := fs.Int("size", 0, "Tamano")
 	unit := fs.String("unit", "k", "Unidad")
 	typ := fs.String("type", "p", "Tipo")
-	fit := fs.String("fit", "", "Ajuste")
+	fit := fs.String("fit", "wf", "Ajuste")
 	name := fs.String("name", "", "Nombre")
 	path := fs.String("path", "", "Ruta")
 
@@ -198,7 +198,7 @@ func fn_fdisk(params string, linea string) {
 
 	// Process the input
 	for _, match := range matches {
-		flagName := match[1]                   // match[1]: Captura y guarda el nombre del flag (por ejemplo, "size", "unit", "fit", "path")
+		flagName := strings.ToLower(match[1])  // match[1]: Captura y guarda el nombre del flag (por ejemplo, "size", "unit", "fit", "path")
 		flagValue := strings.ToLower(match[2]) //trings.ToLower(match[2]): Captura y guarda el valor del flag, asegurándose de que esté en minúsculas
 
 		flagValue = strings.Trim(flagValue, "\"")
@@ -212,7 +212,7 @@ func fn_fdisk(params string, linea string) {
 	}
 
 	if *fit == "" {
-		*fit = "w"
+		*fit = "wf"
 	}
 
 	// Validaciones
@@ -234,9 +234,9 @@ func fn_fdisk(params string, linea string) {
 		return
 	}
 
-	if *fit != "b" && *fit != "f" && *fit != "w" {
-		fmt.Println("Error: El parametro fit debe ser b - f - w")
-		utilidades.AgregarRespuesta("Error en linea " + linea + " : El parametro fit debe ser b - f - w")
+	if *fit != "bf" && *fit != "ff" && *fit != "wf" {
+		fmt.Println("Error: El parametro fit debe ser bf - ff - wf aqui")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : El parametro fit debe ser bf - ff - wf")
 		return
 	}
 
