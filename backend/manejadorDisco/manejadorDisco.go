@@ -12,10 +12,11 @@ import (
 )
 
 type ParticionMontada struct {
-	Path   string
-	Name   string
-	ID     string
-	Status byte // 0 -> No Montada 1 -> Montada
+	Path    string
+	Name    string
+	ID      string
+	Status  byte // 0 -> No Montada 1 -> Montada
+	Logeado bool
 }
 
 var particionesMontadas = make(map[string][]ParticionMontada)
@@ -24,6 +25,32 @@ var particionesMontadas = make(map[string][]ParticionMontada)
 
 func GetMountedPartitions() map[string][]ParticionMontada {
 	return particionesMontadas
+}
+
+func MarkPartitionAsLogeado(id string) {
+	for diskID, partitions := range particionesMontadas {
+		for i, partition := range partitions {
+			if partition.ID == id {
+				particionesMontadas[diskID][i].Logeado = true
+				fmt.Printf("Partición con ID %s marcada como logueada.\n", id)
+				return
+			}
+		}
+	}
+	fmt.Printf("No se encontró la partición con ID %s para marcarla como logueada.\n", id)
+}
+
+func MarkPartitionAsDeslogeado(id string) {
+	for _, partitions := range particionesMontadas {
+		for i, partition := range partitions {
+			if partition.ID == id {
+				partitions[i].Logeado = false
+				fmt.Println("Partición", id, "marcada como deslogueada.")
+				utilidades.AgregarRespuesta("Se ha cerrado la sesion en la Partición " + id)
+				return
+			}
+		}
+	}
 }
 
 func PrintMountedPartitions() {

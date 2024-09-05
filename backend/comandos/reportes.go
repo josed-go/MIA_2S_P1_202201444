@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"unsafe"
 )
 
 func Reportes(id string, path string, name string, linea string) {
@@ -19,6 +20,10 @@ func Reportes(id string, path string, name string, linea string) {
 		repMBR(id, path, linea)
 	case "disk":
 		repDisk(id, path, linea)
+	case "inode":
+		repInodes(id, path, linea)
+	case "sb":
+		reportSuperBloque(id, path)
 	default:
 		fmt.Println("Tipo de reporte no encontrado")
 		utilidades.AgregarRespuesta("Error en linea " + linea + " : Tipo de reporte no encontrado")
@@ -351,4 +356,259 @@ func repDisk(id string, path string, linea string) {
 	utilidades.AgregarRespuesta("Reporte de uso de disco generado exitosamente en " + path)
 	fmt.Println("Reporte de uso de disco generado exitosamente")
 	fmt.Println("====== FIN REP DISK ======")
+}
+
+func repInodes(id string, path string, linea string) {
+	fmt.Println("====== INICIO REP INODES ======")
+	fmt.Println("Id:", id)
+	fmt.Println("Path:", path)
+
+	var mountedPartition manejadorDisco.ParticionMontada
+	var particionEncontrada bool
+
+	for _, partitions := range manejadorDisco.GetMountedPartitions() {
+		for _, partition := range partitions {
+			if partition.ID == id {
+				mountedPartition = partition
+				particionEncontrada = true
+				break
+			}
+		}
+		if particionEncontrada {
+			break
+		}
+	}
+
+	if !particionEncontrada {
+		fmt.Println("Partición no encontrada")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : Partición no encontrada")
+		return
+	}
+
+	file, err := utilidades.OpenFile(mountedPartition.Path)
+	if err != nil {
+		fmt.Println("Error al abrir el archivo:", err)
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : Error al abrir el archivo")
+		return
+	}
+	defer file.Close()
+
+	// Aquí leerás y procesarás los inodos para generar el reporte
+
+	textoDot := "digraph G {\n"
+	textoDot += "node [shape=none];\n"
+	textoDot += "tablaInodes [label=<\n"
+	textoDot += "<table border='1' cellborder='1' cellspacing='0'>\n"
+	textoDot += "<tr><td colspan='2' bgcolor=\"#84b6f4\">Inodes</td></tr>\n"
+
+	// Ajusta los valores según tu estructura
+	// Asumiendo que los inodos empiezan en una posición específica y que tienes un número máximo de inodos
+	var sb estructuras.Superblock
+
+	inodeTableStart := sb.S_inode_start
+	for i := 0; i < int(sb.S_inodes_count); i++ {
+		var inode estructuras.Inode
+		offset := inodeTableStart + int32(i)*int32(unsafe.Sizeof(inode))
+
+		if err := utilidades.ReadObject(file, &inode, int64(offset)); err != nil {
+			fmt.Println("Error al leer el inodo:", err)
+			utilidades.AgregarRespuesta("Error en linea " + linea + " : Error al leer el inodo")
+			return
+		}
+
+		// Verifica si el inodo está en uso (esto depende de cómo marcas inodos libres/ocupados)
+		if inode.I_size > 0 { // Condición para determinar si está en uso
+			textoDot += fmt.Sprintf("<tr><td bgcolor=\"#d8f8e1\">Inodo %d</td><td bgcolor=\"#d8f8e1\">%d</td></tr>\n", i+1, inode.I_size)
+			textoDot += fmt.Sprintf("<tr><td bgcolor=\"#d8f8e1\">UID</td><td bgcolor=\"#d8f8e1\">%d</td></tr>\n", inode.I_uid)
+			textoDot += fmt.Sprintf("<tr><td bgcolor=\"#d8f8e1\">GID</td><td bgcolor=\"#d8f8e1\">%d</td></tr>\n", inode.I_gid)
+			textoDot += fmt.Sprintf("<tr><td bgcolor=\"#d8f8e1\">Size</td><td bgcolor=\"#d8f8e1\">%d</td></tr>\n", inode.I_size)
+			textoDot += fmt.Sprintf("<tr><td bgcolor=\"#d8f8e1\">Type</td><td bgcolor=\"#d8f8e1\">%s</td></tr>\n", string(inode.I_type[:]))
+			textoDot += fmt.Sprintf("<tr><td bgcolor=\"#d8f8e1\">Perm</td><td bgcolor=\"#d8f8e1\">%s</td></tr>\n", string(inode.I_perm[:]))
+
+			// Referencias a bloques
+			for j, block := range inode.I_block {
+				if block > 0 {
+					textoDot += fmt.Sprintf("<tr><td bgcolor=\"#d8f8e1\">Block %d</td><td bgcolor=\"#d8f8e1\">%d</td></tr>\n", j+1, block)
+				}
+			}
+		}
+	}
+
+	textoDot += "</table>\n"
+	textoDot += ">];\n"
+	textoDot += "}\n"
+
+	rutaDot := "/home/jd/temps/inodes.dot"
+	err = os.WriteFile(rutaDot, []byte(textoDot), 0644)
+	if err != nil {
+		utilidades.AgregarRespuesta("Error al escribir el archivo DOT")
+		fmt.Println("Error al escribir el archivo DOT:", err)
+		return
+	}
+
+	dir := filepath.Dir(path)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err = os.MkdirAll(dir, 0755)
+		if err != nil {
+			utilidades.AgregarRespuesta("Error al crear el directorio")
+			fmt.Println("Error al crear el directorio:", err)
+			return
+		}
+	}
+
+	cmd := exec.Command("dot", "-Tjpg", rutaDot, "-o", path)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		utilidades.AgregarRespuesta("Error al ejecutar Graphviz")
+		fmt.Println("Error al ejecutar Graphviz:", err)
+		fmt.Println("Detalles del error:", stderr.String())
+		return
+	}
+
+	utilidades.AgregarRespuesta("Reporte de inodes generado exitosamente en " + path)
+	fmt.Println("Reporte de inodes generado exitosamente")
+	// Aquí generas la imagen del reporte
+	// utilidades.GenerarImagenDot(rutaDot, path)
+	fmt.Println("====== FIN REP INODES ======")
+}
+
+func reportSuperBloque(id string, path string) {
+	fmt.Println("-----INICIO REPORT_Superbloque----")
+	fmt.Println("ID:", id)
+	fmt.Println("Type (output path):", path)
+
+	// Verificar si el usuario ya está logueado buscando en las particiones montadas
+	var mountedPartition manejadorDisco.ParticionMontada
+	var particionEncontrada bool
+
+	for _, partitions := range manejadorDisco.GetMountedPartitions() {
+		for _, partition := range partitions {
+			if partition.ID == id {
+				mountedPartition = partition
+				particionEncontrada = true
+				break
+			}
+		}
+		if particionEncontrada {
+			break
+		}
+	}
+
+	if !particionEncontrada {
+		fmt.Println("Partición no encontrada")
+		utilidades.AgregarRespuesta("Error en linea  Partición no encontrada")
+		return
+	}
+
+	// Abrir archivo binario
+	file, err := utilidades.OpenFile(mountedPartition.Path)
+	if err != nil {
+		fmt.Println("Error: No se pudo abrir el archivo:", err)
+		return
+	}
+	defer file.Close()
+
+	var TempMBR estructuras.MBR
+	// Leer el MBR desde el archivo binario
+	if err := utilidades.ReadObject(file, &TempMBR, 0); err != nil {
+		fmt.Println("Error: No se pudo leer el MBR:", err)
+		return
+	}
+
+	// Imprimir el MBR
+	estructuras.PrintMBR(TempMBR)
+	fmt.Println("-------------")
+
+	var index int = -1
+	// Iterar sobre las particiones del MBR para encontrar la correcta
+	for i := 0; i < 4; i++ {
+		if TempMBR.Partitions[i].Size != 0 {
+			if strings.Contains(string(TempMBR.Partitions[i].Id[:]), id) {
+				fmt.Println("Partition found")
+				if TempMBR.Partitions[i].Status[0] == '1' {
+					fmt.Println("Partition is mounted")
+					index = i
+				} else {
+					fmt.Println("Partition is not mounted")
+					return
+				}
+				break
+			}
+		}
+	}
+
+	if index != -1 {
+		estructuras.PrintPartition(TempMBR.Partitions[index])
+	} else {
+		fmt.Println("Partition not found")
+		return
+	}
+
+	var tempSuperblock estructuras.Superblock
+	// Leer el Superblock desde el archivo binario
+	if err := utilidades.ReadObject(file, &tempSuperblock, int64(TempMBR.Partitions[index].Start)); err != nil {
+		fmt.Println("Error: No se pudo leer el Superblock:", err)
+		return
+	}
+
+	// Escribir el contenido del DOT
+	textoDot := "digraph G {"
+	textoDot += "  node [shape=none];"
+	textoDot += "  Superbloque [label=<"
+	textoDot += "  <table border='0' cellborder='1' cellspacing='0' cellpadding='10'>"
+	textoDot += "    <tr><td colspan='2' bgcolor=\"#84b6f4\"><b>Superbloque</b></td></tr>"
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_filesystem_type</b></td><td bgcolor=\"#bee6f4\">%d</td></tr>\n", tempSuperblock.S_filesystem_type)
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_inodes_count</b></td><td bgcolor=\"#bee6f4\">%d</td></tr>\n", tempSuperblock.S_inodes_count)
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_blocks_count</b></td><td bgcolor=\"#bee6f4\">%d</td></tr>\n", tempSuperblock.S_blocks_count)
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_free_blocks_count</b></td><td bgcolor=\"#bee6f4\">%d</td></tr>\n", tempSuperblock.S_free_blocks_count)
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_free_inodes_count</b></td><td bgcolor=\"#bee6f4\">%d</td></tr>\n", tempSuperblock.S_free_inodes_count)
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_mtime</b></td><td bgcolor=\"#bee6f4\">%s</td></tr>\n", string(tempSuperblock.S_mtime[:]))
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_umtime</b></td><td bgcolor=\"#bee6f4\">%s</td></tr>\n", string(tempSuperblock.S_umtime[:]))
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_mnt_count</b></td><td bgcolor=\"#bee6f4\">%d</td></tr>\n", tempSuperblock.S_mnt_count)
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_magic</b></td><td bgcolor=\"#bee6f4\">%d</td></tr>\n", tempSuperblock.S_magic)
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_inode_size</b></td><td bgcolor=\"#bee6f4\">%d</td></tr>\n", tempSuperblock.S_inode_size)
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_block_size</b></td><td bgcolor=\"#bee6f4\">%d</td></tr>\n", tempSuperblock.S_block_size)
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_fist_ino</b></td><td bgcolor=\"#bee6f4\">%d</td></tr>\n", tempSuperblock.S_fist_ino)
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_first_blo</b></td><td bgcolor=\"#bee6f4\">%d</td></tr>\n", tempSuperblock.S_first_blo)
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_bm_inode_start</b></td><td bgcolor=\"#bee6f4\">%d</td></tr>\n", tempSuperblock.S_bm_inode_start)
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_bm_block_start</b></td><td bgcolor=\"#bee6f4\">%d</td></tr>\n", tempSuperblock.S_bm_block_start)
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_inode_start</b></td><td bgcolor=\"#bee6f4\">%d</td></tr>\n", tempSuperblock.S_inode_start)
+	textoDot += fmt.Sprintf("    <tr><td bgcolor=\"#bee6f4\"><b>S_block_start</b></td><td bgcolor=\"#bee6f4\">%d</td></tr>\n", tempSuperblock.S_block_start)
+	textoDot += "  </table>"
+	textoDot += ">];"
+	textoDot += "}"
+
+	rutaDot := "/home/jd/temps/superbloque.dot"
+	err = os.WriteFile(rutaDot, []byte(textoDot), 0644)
+	if err != nil {
+		utilidades.AgregarRespuesta("Error al escribir el archivo DOT")
+		fmt.Println("Error al escribir el archivo DOT:", err)
+		return
+	}
+
+	// Verificar si el directorio de salida existe, si no, crearlo
+	dir := filepath.Dir(path)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err = os.MkdirAll(dir, 0755)
+		if err != nil {
+			fmt.Println("Error al crear el directorio:", err)
+			return
+		}
+	}
+
+	// Generar la imagen en JPG usando Graphviz
+	cmd := exec.Command("dot", "-Tjpg", rutaDot, "-o", path)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println("Error al generar el archivo JPG:", err)
+		fmt.Println("Detalles del error:", stderr.String())
+		return
+	}
+
+	fmt.Println("Reporte del Superbloque generado correctamente en", path)
+	utilidades.AgregarRespuesta("Reporte del Superbloque generado correctamente en " + path)
 }

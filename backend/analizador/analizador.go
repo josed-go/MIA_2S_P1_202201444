@@ -4,6 +4,7 @@ import (
 	"backend/comandos"
 	"backend/manejadorDisco"
 	"backend/sistema"
+	"backend/usuarios"
 	"backend/utilidades"
 	"bufio"
 	"flag"
@@ -81,6 +82,10 @@ func AnalyzeCommand(command string, params string, linea string) {
 		fn_mkfs(params, linea)
 	} else if strings.Contains(command, "rep") {
 		fn_rep(params, linea)
+	} else if strings.Contains(command, "login") {
+		fn_login(params, linea)
+	} else if strings.Contains(command, "logout") {
+		usuarios.Logout()
 	} else {
 		fmt.Println("Error: Commando invalido o no encontrado")
 		utilidades.AgregarRespuesta("Error en linea " + linea + " : Commando invalido o no encontrado")
@@ -474,5 +479,55 @@ func fn_rep(params string, linea string) {
 	}
 
 	comandos.Reportes(*id, *path, *name, linea)
+
+}
+
+func fn_login(input string, linea string) {
+	// Definir las flags
+	fs := flag.NewFlagSet("login", flag.ExitOnError)
+	user := fs.String("user", "", "Usuario")
+	pass := fs.String("pass", "", "Contraseña")
+	id := fs.String("id", "", "Id")
+
+	// Parsearlas
+	fs.Parse(os.Args[1:])
+
+	// Match de flags en el input
+	matches := re.FindAllStringSubmatch(input, -1)
+
+	// Procesar el input
+	for _, match := range matches {
+		flagName := match[1]
+		flagValue := match[2]
+
+		flagValue = strings.Trim(flagValue, "\"")
+
+		switch flagName {
+		case "user", "pass", "id":
+			fs.Set(flagName, flagValue)
+		default:
+			fmt.Println("Error: Flag not found")
+		}
+	}
+
+	if *user == "" {
+		fmt.Println("Error: El usuario es obligatorio")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : El usuario es obligatorio")
+		return
+	}
+
+	if *pass == "" {
+		fmt.Println("Error: La contraseña es obligatoria")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : La contraseña es obligatoria")
+		return
+	}
+
+	if *id == "" {
+		fmt.Println("Error: El id es obligatorio")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : El id es obligatorio")
+		return
+	}
+
+	usuarios.Login(*user, *pass, *id)
 
 }
