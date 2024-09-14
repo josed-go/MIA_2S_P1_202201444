@@ -444,93 +444,6 @@ func Fdisk(size int, fit string, unit string, path string, typ string, name stri
 	fmt.Println("======FIN FDISK======")
 }
 
-/*func Mount(name string, path string, linea string) {
-	fmt.Println("======INICIO MOUNT======")
-	if path == "" {
-		fmt.Println("Error: La ruta es obligatoria.")
-		return
-	}
-
-	if name == "" {
-		fmt.Println("Error: El nombre es obligatorio.")
-		return
-	}
-
-	file, err := utilidades.OpenFile(path)
-	if err != nil {
-		utilidades.AgregarRespuesta("Error en linea " + linea + " : No se encontro la ruta:" + path)
-		return
-	}
-
-	var mbrTemp estructuras.MBR
-	if err := utilidades.ReadObject(file, &mbrTemp, 0); err != nil {
-		return
-	}
-
-	mountedCount := 0
-	diskLetter := getLetra(path) // Obtener la letra correspondiente al disco actual
-
-	for i := 0; i < 4; i++ {
-		if mbrTemp.Partitions[i].Status[0] == '1' {
-			mountedCount++
-		}
-	}
-
-	existe := false
-
-	for i := 0; i < 4; i++ {
-		partitionName := string(mbrTemp.Partitions[i].Name[:])
-		partitionName = strings.TrimRight(partitionName, "\x00")
-		if partitionName == name {
-			if strings.Contains(string(mbrTemp.Partitions[i].Type[:]), "e") || strings.Contains(string(mbrTemp.Partitions[i].Type[:]), "l") {
-				fmt.Println("Nombre:" + string(mbrTemp.Partitions[i].Name[:]))
-				fmt.Println("Tipo:" + string(mbrTemp.Partitions[i].Type[:]))
-				fmt.Println("Error: No se puede montar una partición extendida o lógica.")
-				utilidades.AgregarRespuesta("Error en linea " + linea + " : No se puede montar una partición extendida o lógica.")
-				return
-			}
-
-			if mbrTemp.Partitions[i].Status[0] == '1' {
-				fmt.Println("Error: La particion con nombre: " + name + " ya se encuentra montada.")
-				utilidades.AgregarRespuesta("Error en linea " + linea + " : La particion con nombre: " + name + " ya se encuentra montada.")
-				return
-			}
-
-			mountedCount++ // Incrementar el número de partición montada
-			mbrTemp.Partitions[i].Status[0] = '1'
-			mbrTemp.Partitions[i].Correlative = int32(mountedCount)
-			// Generar ID con 44 + número de partición + letra de disco
-			mbrTemp.Partitions[i].Id = [4]byte{'4', '4', byte(mountedCount + '0'), diskLetter}
-			fmt.Println("Partición montada exitosamente en la ruta: " + path)
-			utilidades.AgregarRespuesta("Partición con nombre:" + name + " montada exitosamente en la ruta: " + path)
-			existe = true
-			break
-		}
-	}
-
-	if !existe {
-		fmt.Println("Error: No existe ninguna partición con ese nombre en el disco con ruta:" + path)
-		utilidades.AgregarRespuesta("Error en linea " + linea + " : No existe ninguna partición con ese nombre en el disco con ruta:" + path)
-		return
-	}
-
-	if err := utilidades.WriteObject(file, mbrTemp, 0); err != nil {
-		return
-	}
-
-	var TempMBR2 estructuras.MBR
-	if err := utilidades.ReadObject(file, &TempMBR2, 0); err != nil {
-		return
-	}
-	fmt.Println("******** MBR ********")
-	estructuras.PrintMBR(TempMBR2)
-	fmt.Println("******** MBR ********")
-	defer file.Close()
-
-	fmt.Println("======FIN MOUNT======")
-
-}*/
-
 // Función para montar particiones
 func Mount(path string, name string, linea string) {
 	fmt.Println("======INICIO MOUNT======")
@@ -641,4 +554,48 @@ func getLastDiskID() string {
 
 func generateDiskID(path string) string {
 	return strings.ToLower(path)
+}
+
+func ShowPartitions(path string) {
+	fmt.Println("======INICIO SHOW PARTITIONS======")
+	utilidades.AgregarRespuesta("======INICIO SHOW PARTITIONS======")
+
+	// Abre el archivo
+	file, err := utilidades.OpenFile(path)
+	if err != nil {
+		fmt.Println("Error: No se pudo abrir el archivo en la ruta:", path)
+		return
+	}
+	defer file.Close()
+
+	// Lee el MBR
+	var TempMBR estructuras.MBR
+	if err := utilidades.ReadObject(file, &TempMBR, 0); err != nil {
+		fmt.Println("Error: No se pudo leer el MBR desde el archivo")
+		return
+	}
+
+	fmt.Println("Particiones montadas en disco:", path)
+	utilidades.AgregarRespuesta("Particiones en disco: " + path)
+
+	// Recorre las particiones
+	for i := 0; i < 4; i++ {
+		partition := TempMBR.Partitions[i]
+		if partition.Size != 0 {
+			if partition.Status[0] == '1' {
+				// Convertir el nombre de partición y eliminar bytes nulos
+				nombreParticion := strings.TrimRight(string(partition.Name[:]), "\x00")
+
+				// Construye el string con la información de la partición
+				valor := fmt.Sprintf(" - Partición Name: %s, ID: %s, Status: %c",
+					nombreParticion, partition.Id, partition.Status[0])
+
+				// Añade el resultado final
+				utilidades.AgregarRespuesta(valor)
+			}
+		}
+	}
+
+	utilidades.AgregarRespuesta("======FIN SHOW PARTITIONS======")
+	fmt.Println("======FIN SHOW PARTITIONS======")
 }
