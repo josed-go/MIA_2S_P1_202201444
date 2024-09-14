@@ -587,8 +587,8 @@ func ShowPartitions(path string) {
 				nombreParticion := strings.TrimRight(string(partition.Name[:]), "\x00")
 
 				// Construye el string con la información de la partición
-				valor := fmt.Sprintf(" - Partición Name: %s, ID: %s, Status: %c",
-					nombreParticion, partition.Id, partition.Status[0])
+				valor := fmt.Sprintf(" - Partición Name: %s, ID: %s, Status: %c, Size: %d",
+					nombreParticion, partition.Id, partition.Status[0], partition.Size)
 
 				// Añade el resultado final
 				utilidades.AgregarRespuesta(valor)
