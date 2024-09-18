@@ -48,6 +48,7 @@ func Analyze(entrada string) {
 		line := scanner.Text()
 
 		if strings.Contains(line, "#") {
+			utilidades.AgregarRespuesta(line)
 			line = strings.Split(line, "#")[0]
 		}
 
@@ -88,6 +89,10 @@ func AnalyzeCommand(command string, params string, linea string) {
 		usuarios.Logout()
 	} else if strings.Contains(command, "showpartitions") {
 		fn_showpartitions(params, linea)
+	} else if strings.Contains(command, "mkusr") {
+		fn_AgregarUsuario(params, linea)
+	} else if strings.Contains(command, "mkgrp") {
+		fn_AgregarGrupo(params)
 	} else {
 		fmt.Println("Error: Commando invalido o no encontrado")
 		utilidades.AgregarRespuesta("Error en linea " + linea + " : Commando invalido o no encontrado")
@@ -392,7 +397,7 @@ func fn_cat(params string, linea string) {
 	}
 
 	// Llamar a la función para manejar los archivos en orden
-	comandos.Cat(orderedFiles, linea)
+	comandos.Cat(orderedFiles)
 }
 
 func fn_mkfs(input string, linea string) {
@@ -566,4 +571,82 @@ func fn_showpartitions(params string, linea string) {
 	}
 
 	manejadorDisco.ShowPartitions(*path)
+}
+
+func fn_AgregarUsuario(params string, linea string) {
+	// Definir las flags
+	fs := flag.NewFlagSet("login", flag.ExitOnError)
+	user := fs.String("user", "", "Usuario")
+	pass := fs.String("pass", "", "Contraseña")
+	grupo := fs.String("grp", "", "Grupo")
+
+	// Parsearlas
+	fs.Parse(os.Args[1:])
+
+	// Match de flags en el input
+	matches := re.FindAllStringSubmatch(params, -1)
+
+	for _, match := range matches {
+		flagName := strings.ToLower(match[1])
+		flagValue := strings.ToLower(match[2])
+
+		flagValue = strings.Trim(flagValue, "\"")
+
+		switch flagName {
+		case "user", "pass", "grp":
+			fs.Set(flagName, flagValue)
+		default:
+			fmt.Println("Error: Flag not found")
+		}
+	}
+
+	if *user == "" {
+		fmt.Println("Error: El usuario es obligatorio")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : El usuario es obligatorio")
+		return
+	}
+
+	if *pass == "" {
+		fmt.Println("Error: La contraseña es obligatoria")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : La contraseña es obligatoria")
+		return
+	}
+
+	if *grupo == "" {
+		fmt.Println("Error: El grupo es obligatorio")
+		utilidades.AgregarRespuesta("Error en linea " + linea + " : El grupo es obligatorio")
+		return
+	}
+
+	usuarios.AddUser(*user, *pass, *grupo)
+}
+
+func fn_AgregarGrupo(params string) {
+	fs := flag.NewFlagSet("mkgrp", flag.ExitOnError)
+	name := fs.String("name", "", "Nombre")
+
+	fs.Parse(os.Args[1:])
+	matches := re.FindAllStringSubmatch(params, -1)
+
+	for _, match := range matches {
+		flagName := strings.ToLower(match[1])
+		flagValue := strings.ToLower(match[2])
+
+		flagValue = strings.Trim(flagValue, "\"")
+
+		switch flagName {
+		case "name":
+			fs.Set(flagName, flagValue)
+		default:
+			fmt.Println("Error: Flag not found")
+		}
+	}
+
+	if *name == "" {
+		utilidades.AgregarRespuesta("Error: El nombre del grupo es obligatorio")
+		return
+	}
+
+	usuarios.AddGroup(*name)
+
 }

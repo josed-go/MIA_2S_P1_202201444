@@ -56,7 +56,7 @@ function App() {
   const analizar = async () => {
     var entrada = editorRef.current.getValue()
 
-    entrada = entrada +"\n"+ entradaFile
+    //entrada = entrada +"\n"+ entradaFile
     
     const entradaFiltrada = confirmarRmdisk(entrada)
 
@@ -90,7 +90,7 @@ function App() {
               onMount={(editor) => handleEditor(editor, "editor")}
           />
         </div>
-        <FileInput texto={setEntradaFile} />
+        <FileInput texto={setEntradaFile} editor={editorRef} />
         <button className='my-6 mx-auto p-2 rounded-md bg-btn w-1/12 text-xl font-bold text-white hover:bg-btn-osc'
           onClick={analizar}
         >

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const FileInput = ({ texto }) => {
+const FileInput = ({ texto, editor }) => {
 
     const [ fileName, setFileName] = useState("")
 
@@ -15,6 +15,7 @@ const FileInput = ({ texto }) => {
 
             fileReader.onload = () => {
                 texto(fileReader.result)
+                editor.current.setValue(fileReader.result)
             }
 
             fileReader.onerror = () => {

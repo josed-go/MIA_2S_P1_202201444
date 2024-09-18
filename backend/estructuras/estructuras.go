@@ -1,6 +1,11 @@
 package estructuras
 
-import "fmt"
+import (
+	"backend/utilidades"
+	"fmt"
+	"strings"
+	"unicode"
+)
 
 //"fmt"
 
@@ -165,6 +170,28 @@ func PrintFileblock(fileblock Fileblock) {
 	fmt.Println("====== Fileblock ======")
 	fmt.Printf("B_content: %s\n", string(fileblock.B_content[:]))
 	fmt.Println("=======================")
+}
+
+func AgregarFileBlockConsola(fileblock Fileblock) {
+
+	content := strings.TrimRight(string(fileblock.B_content[:]), "\x00")
+
+	lines := strings.Split(content, "\n")
+
+	for _, line := range lines {
+
+		printableLine := strings.Map(func(r rune) rune {
+			if unicode.IsPrint(r) || r == '\t' || r == '\n' {
+				return r
+			}
+			return -1
+		}, line)
+
+		if trimmedLine := strings.TrimSpace(printableLine); trimmedLine != "" {
+			utilidades.AgregarRespuesta(trimmedLine)
+		}
+	}
+
 }
 
 type Pointerblock struct {

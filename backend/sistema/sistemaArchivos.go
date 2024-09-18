@@ -294,7 +294,7 @@ func initInode(inode *estructuras.Inode, date string) {
 	copy(inode.I_atime[:], date)
 	copy(inode.I_ctime[:], date)
 	copy(inode.I_mtime[:], date)
-	copy(inode.I_perm[:], "664")
+	copy(inode.I_perm[:], "777")
 
 	for i := int32(0); i < 15; i++ {
 		inode.I_block[i] = -1
